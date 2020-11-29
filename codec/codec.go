@@ -1,6 +1,8 @@
 package codec
 
-import "io"
+import (
+	"io"
+)
 
 type Header struct {
 	ServiceMethod string // format "Service.Method"

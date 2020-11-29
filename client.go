@@ -1,4 +1,4 @@
-package RPCg
+package rpcg
 
 import (
 	"encoding/json"
@@ -205,7 +205,6 @@ func NewClient(conn net.Conn, opt *Option) (*Client, error) {
 	// send options with server
 	if err := json.NewEncoder(conn).Encode(opt); err != nil {
 		log.Println("rpc client: options error: ", err)
-		_ = conn.Close()
 		return nil, err
 	}
 	return newClientCodec(f(conn), opt), nil
