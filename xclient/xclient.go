@@ -2,9 +2,9 @@ package xclient
 
 import (
 	"context"
-	. "geerpc"
 	"io"
 	"reflect"
+	. "rpcg"
 	"sync"
 )
 

@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package reply;
+option go_package = ".;reply";
+
+message ProtoReply {
+  string serviceMethod = 1;
+  uint64  seq = 2;
+  string error = 3;
+}

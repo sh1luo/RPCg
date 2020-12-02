@@ -1,4 +1,4 @@
-package rpcgrand
+package utils
 
 import (
 	"math/rand"

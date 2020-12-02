@@ -3,6 +3,7 @@ package registry
 import (
 	"log"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -14,8 +15,13 @@ import (
 // returns all alive servers and delete dead servers sync simultaneously.
 type RpcgRegistry struct {
 	timeout time.Duration
-	mu      sync.Mutex // protect following
-	servers map[string]*ServerItem
+
+	// protect following
+	mu sync.Mutex
+
+	// map's values are expected to separated byampersands or semicolons,
+	// e.g."weight=xxx&start=xxx"
+	servers map[string]string
 }
 
 type ServerItem struct {
@@ -31,21 +37,21 @@ const (
 // New create a registry instance with timeout setting
 func New(timeout time.Duration) *RpcgRegistry {
 	return &RpcgRegistry{
-		servers: make(map[string]*ServerItem),
+		servers: make(map[string]string),
 		timeout: timeout,
 	}
 }
 
 var DefaultGeeRegister = New(defaultTimeout)
 
-func (r *RpcgRegistry) putServer(addr string) {
+func (r *RpcgRegistry) putServer(addr, info string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	s := r.servers[addr]
-	if s == nil {
-		r.servers[addr] = &ServerItem{Addr: addr, start: time.Now()}
-	} else {
-		s.start = time.Now() // if exists, update start time to keep alive
+	if _, exist := r.servers[addr]; exist {
+		r.servers[addr] = info
+		if v, err := url.ParseQuery(info); err == nil && v.Get("start") == "" {
+			r.servers[addr] += "&start=" + time.Now().String()
+		}
 	}
 }
 
@@ -53,11 +59,16 @@ func (r *RpcgRegistry) aliveServers() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var alive []string
-	for addr, s := range r.servers {
-		if r.timeout == 0 || s.start.Add(r.timeout).After(time.Now()) {
-			alive = append(alive, addr)
-		} else {
-			delete(r.servers, addr)
+	for addr, info := range r.servers {
+		if v, err := url.ParseQuery(info); err == nil {
+			s := v.Get("start")
+			if start, err := time.Parse("2006-01-02 15:04:05", s); err == nil && s != "" {
+				if r.timeout == 0 || start.Add(r.timeout).After(time.Now()) {
+					alive = append(alive, addr)
+				} else {
+					delete(r.servers, addr)
+				}
+			}
 		}
 	}
 	sort.Strings(alive)
@@ -72,12 +83,13 @@ func (r *RpcgRegistry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("X-RPCg-Servers", strings.Join(r.aliveServers(), ","))
 	case "POST":
 		// keep it simple, server is in req.Header
-		addr := req.Header.Get("X-RPCg-Server")
+		addr := req.Header.Get("X-RPCg-Server-Addr")
+		info := req.Header.Get("X-RPCg-Server-Info")
 		if addr == "" {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		r.putServer(addr)
+		r.putServer(addr, info)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
