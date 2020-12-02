@@ -47,7 +47,6 @@ func (d *MultiServersDiscovery) Update(servers []string) error {
 }
 
 // Get a server according to mode
-//TODO (d *MultiServersDiscovery) Get(balancer Balancer) (string, error) {
 func (d *MultiServersDiscovery) Get(mode SelectMode) (string, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

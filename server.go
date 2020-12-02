@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"rpcg/codec"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"reflect"
+	"rpcg/codec"
 	"strings"
 	"sync"
 	"time"
@@ -225,9 +225,9 @@ func (server *Server) Register(rcvr interface{}) error {
 func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
 
 const (
-	connected        = "200 Connected to rpcg"
-	defaultRPCPath   = "/_rpcg_"
-	defaultDebugPath = "/debug/rpcg"
+	connected        = "200 Connected to Gee RPC"
+	defaultRPCPath   = "/_geeprc_"
+	defaultDebugPath = "/debug/geerpc"
 )
 
 // ServeHTTP implements an http.Handler that answers RPC requests.
