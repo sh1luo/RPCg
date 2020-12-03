@@ -116,10 +116,10 @@ func (s *weightedRoundRobinSelector) UpdateAllServers(servers map[string]string)
 
 func createWeighted(servers map[string]string) []*Weighted {
 	ss := make([]*Weighted, 0, len(servers))
-	for k, metadata := range servers {
+	for k, info := range servers {
 		w := &Weighted{Server: k, Weight: 1}
 
-		if v, err := url.ParseQuery(metadata); err == nil {
+		if v, err := url.ParseQuery(info); err == nil {
 			ww := v.Get("weight")
 			if ww != "" {
 				if weight, err := strconv.Atoi(ww); err == nil {

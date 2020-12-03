@@ -24,11 +24,6 @@ type RpcgRegistry struct {
 	servers map[string]string
 }
 
-type ServerItem struct {
-	Addr  string
-	start time.Time
-}
-
 const (
 	defaultPath    = "/_rpcg_/registry"
 	defaultTimeout = time.Minute * 5
@@ -86,7 +81,7 @@ func (r *RpcgRegistry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		addr := req.Header.Get("X-RPCg-Server-Addr")
 		info := req.Header.Get("X-RPCg-Server-Info")
 		if addr == "" {
-			w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		r.putServer(addr, info)

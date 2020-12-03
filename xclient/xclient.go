@@ -26,7 +26,7 @@ func (xc *XClient) Close() error {
 	xc.mu.Lock()
 	defer xc.mu.Unlock()
 	for key, client := range xc.clients {
-		// I have no idea how to deal with error, just ignore it.
+		// TODO:I have no idea how to deal with error, just ignore it.
 		_ = client.Close()
 		delete(xc.clients, key)
 	}
@@ -83,15 +83,15 @@ func (xc *XClient) Broadcast(ctx context.Context, serviceMethod string, args, re
 	var e error
 	replyDone := reply == nil // if reply is nil, don't need to set value
 	ctx, cancel := context.WithCancel(ctx)
-	for _, rpcAddr := range servers {
+	for rpcAddr, _ := range servers {
 		wg.Add(1)
-		go func() {
+		go func(addr string) {
 			defer wg.Done()
 			var clonedReply interface{}
 			if reply != nil {
 				clonedReply = reflect.New(reflect.ValueOf(reply).Elem().Type()).Interface()
 			}
-			err := xc.call(rpcAddr, ctx, serviceMethod, args, clonedReply)
+			err := xc.call(addr, ctx, serviceMethod, args, clonedReply)
 			mu.Lock()
 			if err != nil && e == nil {
 				e = err
@@ -102,7 +102,7 @@ func (xc *XClient) Broadcast(ctx context.Context, serviceMethod string, args, re
 				replyDone = true
 			}
 			mu.Unlock()
-		}()
+		}(rpcAddr)
 	}
 	wg.Wait()
 	return e

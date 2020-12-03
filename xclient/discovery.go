@@ -2,7 +2,6 @@ package xclient
 
 import (
 	"errors"
-	"math/rand"
 	"rpcg/utils"
 	"sync"
 )
@@ -19,11 +18,11 @@ var _ Discovery = (*MultiServersDiscovery)(nil)
 // MultiServersDiscovery is a discovery for multi servers without a registry center
 // user provides the server addresses explicitly instead
 type MultiServersDiscovery struct {
-	r  *rand.Rand   // generate random number
-	mu sync.RWMutex // protect following
-	//servers []string
+	// protect following
+	mu sync.RWMutex
+
+	//servers
 	servers map[string]string
-	index   int // record the selected position for robin algorithm
 }
 
 // Refresh doesn't make sense for MultiServersDiscovery, so ignore it
