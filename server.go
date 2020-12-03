@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const MagicNumber = 0x3bef5c
+const MagicNumber = 0xcdcdcd
 
 type Option struct {
 	MagicNumber    int           // MagicNumber marks this's a geerpc request
@@ -225,9 +225,9 @@ func (server *Server) Register(rcvr interface{}) error {
 func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
 
 const (
-	connected        = "200 Connected to Gee RPC"
-	defaultRPCPath   = "/_geeprc_"
-	defaultDebugPath = "/debug/geerpc"
+	connected        = "200 Connected to rpcg"
+	defaultRPCPath   = "/_rpcg_"
+	defaultDebugPath = "/debug/rpcg"
 )
 
 // ServeHTTP implements an http.Handler that answers RPC requests.
@@ -240,7 +240,7 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	conn, _, err := w.(http.Hijacker).Hijack()
 	if err != nil {
-		log.Print("rpc hijacking ", req.RemoteAddr, ": ", err.Error())
+		log.Print("rpc Hijacker ", req.RemoteAddr, ": ", err.Error())
 		return
 	}
 	_, _ = io.WriteString(conn, "HTTP/1.0 "+connected+"\n\n")

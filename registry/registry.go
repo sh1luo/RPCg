@@ -1,11 +1,11 @@
 package registry
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
-	"sort"
-	"strings"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -42,31 +42,41 @@ var DefaultGeeRegister = New(defaultTimeout)
 func (r *RpcgRegistry) putServer(addr, info string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, exist := r.servers[addr]; exist {
-		r.servers[addr] = info
-		if v, err := url.ParseQuery(info); err == nil && v.Get("start") == "" {
-			r.servers[addr] += "&start=" + time.Now().String()
+	if info == "" {
+		r.servers[addr] = "start=" + strconv.Itoa(int(time.Now().UnixNano()))
+		return
+	}
+
+	if v, err := url.ParseQuery(info); err == nil {
+		ww := v.Get("weight")
+		w, err := strconv.Atoi(ww)
+		if err != nil {
+			log.Println(w, err)
 		}
+		r.servers[addr] = fmt.Sprintf("start=%s&weight=%d", time.Now().String(), w)
 	}
 }
 
-func (r *RpcgRegistry) aliveServers() []string {
+func (r *RpcgRegistry) aliveServers() map[string]string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	var alive []string
+	alive := make(map[string]string)
 	for addr, info := range r.servers {
+		if r.timeout == 0 {
+			alive[addr] = info
+			continue
+		}
 		if v, err := url.ParseQuery(info); err == nil {
-			s := v.Get("start")
-			if start, err := time.Parse("2006-01-02 15:04:05", s); err == nil && s != "" {
-				if r.timeout == 0 || start.Add(r.timeout).After(time.Now()) {
-					alive = append(alive, addr)
+			vv := v.Get("start")
+			if t, err := strconv.Atoi(vv); err == nil {
+				if t-int(time.Now().UnixNano()) > 0 {
+					alive[addr] = info
 				} else {
 					delete(r.servers, addr)
 				}
 			}
 		}
 	}
-	sort.Strings(alive)
 	return alive
 }
 
@@ -75,7 +85,12 @@ func (r *RpcgRegistry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET":
 		// keep it simple, server is in req.Header
-		w.Header().Set("X-RPCg-Servers", strings.Join(r.aliveServers(), ","))
+		as := r.aliveServers()
+		fmt.Println("aliveServers:", as)
+		for addr, info := range as {
+			w.Header().Add("X-RPCg-Servers", addr)
+			w.Header().Add("X-RPCg-Infos", info)
+		}
 	case "POST":
 		// keep it simple, server is in req.Header
 		addr := req.Header.Get("X-RPCg-Server-Addr")
@@ -84,6 +99,7 @@ func (r *RpcgRegistry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		log.Println("[INFO]:Server alive:", addr, info)
 		r.putServer(addr, info)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -102,28 +118,29 @@ func HandleHTTP() {
 
 // Heartbeat send a heartbeat message every once in a while
 // it's a helper function for a server to register or send heartbeat
-func Heartbeat(registry, addr string, duration time.Duration) {
+func Heartbeat(registry, addr, info string, duration time.Duration) {
 	if duration == 0 {
 		// make sure there is enough time to send heart beat
 		// before it's removed from registry
 		duration = defaultTimeout - time.Duration(1)*time.Minute
 	}
 	var err error
-	err = sendHeartbeat(registry, addr)
+	err = sendHeartbeat(registry, addr, info)
 	go func() {
 		t := time.NewTicker(duration)
 		for err == nil {
 			<-t.C
-			err = sendHeartbeat(registry, addr)
+			err = sendHeartbeat(registry, addr, info)
 		}
 	}()
 }
 
-func sendHeartbeat(registry, addr string) error {
+func sendHeartbeat(registry, addr, info string) error {
 	log.Println(addr, "send heart beat to registry", registry)
 	httpClient := &http.Client{}
 	req, _ := http.NewRequest("POST", registry, nil)
-	req.Header.Set("X-RPCg-Server", addr)
+	req.Header.Set("X-RPCg-Server-Addr", addr)
+	req.Header.Set("X-RPCg-Server-Info", info)
 	if _, err := httpClient.Do(req); err != nil {
 		log.Println("rpc server: heart beat err:", err)
 		return err

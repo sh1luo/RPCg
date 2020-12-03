@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	r = rand.New(rand.NewSource(time.Now().UnixNano()))
+	r  = rand.New(rand.NewSource(time.Now().UnixNano()))
 	mu sync.Mutex
 )
 

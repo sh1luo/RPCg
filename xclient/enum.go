@@ -16,4 +16,3 @@ const (
 	//ConsistentHash is selecting by hashing
 	ConsistentHash
 )
-

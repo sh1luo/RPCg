@@ -2,10 +2,10 @@ package xclient
 
 // Weighted is a wrapped server with  weight
 type Weighted struct {
-	Server          string
-	Weight          int
+	Server string
+	Weight int
 
-	CurrentWeight   int
+	CurrentWeight int
 }
 
 func nextWeighted(servers []*Weighted) (best *Weighted) {
@@ -34,4 +34,3 @@ func nextWeighted(servers []*Weighted) (best *Weighted) {
 	best.CurrentWeight -= total
 	return best
 }
-
