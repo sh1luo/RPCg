@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -38,11 +37,9 @@ func (d *RpcgRegistryDiscovery) Refresh() error {
 		log.Println("rpc registry refresh err:", err)
 		return err
 	}
-	servers := strings.Split(resp.Header.Get("X-RPCg-Servers"), ",")
-	infos := strings.Split(resp.Header.Get("X-RPCg-Infos"), ",")
 
-	fmt.Println(servers, infos)
-
+	servers := resp.Header.Values("X-RPCg-Servers")
+	infos := resp.Header.Values("X-RPCg-Infos")
 	if len(servers) != len(infos) {
 		log.Printf("rpc registry get http header err:\n\tservers:%s\n\binfos:%s", servers, infos)
 		return errors.New("rpc registry :get http header err")
@@ -53,6 +50,7 @@ func (d *RpcgRegistryDiscovery) Refresh() error {
 		d.servers[server] = infos[k]
 	}
 	d.lastUpdate = time.Now()
+
 	return nil
 }
 
@@ -61,8 +59,7 @@ func (d *RpcgRegistryDiscovery) Get(mode SelectMode) (string, error) {
 		fmt.Println("d.Refresh err:", err)
 		return "", err
 	}
-	fmt.Println(d.servers)
-	fmt.Println("suc", mode)
+
 	return d.MultiServersDiscovery.Get(mode)
 }
 
@@ -81,7 +78,6 @@ func NewGeeRegistryDiscovery(registerAddr string, timeout time.Duration) *RpcgRe
 		MultiServersDiscovery: NewMultiServerDiscovery(make(map[string]string, 0)),
 		registry:              registerAddr,
 		timeout:               timeout,
-		//lastUpdate: time.Now(),
 	}
 	return d
 }

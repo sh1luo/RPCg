@@ -2,6 +2,7 @@ package xclient
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"reflect"
 	. "rpcg"
@@ -56,6 +57,7 @@ func (xc *XClient) dial(rpcAddr string) (*Client, error) {
 func (xc *XClient) call(rpcAddr string, ctx context.Context, serviceMethod string, args, reply interface{}) error {
 	client, err := xc.dial(rpcAddr)
 	if err != nil {
+		fmt.Println("xc.dial(rpcAddr) err:",err)
 		return err
 	}
 	return client.Call(ctx, serviceMethod, args, reply)
@@ -67,6 +69,7 @@ func (xc *XClient) call(rpcAddr string, ctx context.Context, serviceMethod strin
 func (xc *XClient) Call(ctx context.Context, serviceMethod string, args, reply interface{}) error {
 	rpcAddr, err := xc.d.Get(xc.mode)
 	if err != nil {
+		fmt.Println("get(xc.mode) err:",err)
 		return err
 	}
 	return xc.call(rpcAddr, ctx, serviceMethod, args, reply)

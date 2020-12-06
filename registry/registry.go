@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ type RpcgRegistry struct {
 	timeout time.Duration
 
 	// protect following
-	mu sync.Mutex
+	mu sync.RWMutex
 
 	// map's values are expected to separated byampersands or semicolons,
 	// e.g."weight=xxx&start=xxx"
@@ -42,65 +43,69 @@ var DefaultGeeRegister = New(defaultTimeout)
 func (r *RpcgRegistry) putServer(addr, info string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.timeout == 0 {
+		r.servers[addr] = info
+	}
+
 	if info == "" {
 		r.servers[addr] = "start=" + strconv.Itoa(int(time.Now().UnixNano()))
 		return
 	}
 
-	if v, err := url.ParseQuery(info); err == nil {
-		ww := v.Get("weight")
-		w, err := strconv.Atoi(ww)
-		if err != nil {
-			log.Println(w, err)
-		}
-		r.servers[addr] = fmt.Sprintf("start=%s&weight=%d", time.Now().String(), w)
+	// TODO:use parseInfo function instead
+	v, _ := url.ParseQuery(info)
+	if ww := v.Get("weight"); ww != "" {
+		r.servers[addr] = fmt.Sprintf("weight=%s&start=%d", ww, int(time.Now().UnixNano()))
 	}
+
+	log.Println("put server完成:", r.servers)
 }
 
 func (r *RpcgRegistry) aliveServers() map[string]string {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	// Quickly release the lock when the servers is obtained
+	r.mu.RLock()
+	ss := r.servers
+	r.mu.RUnlock()
+
 	alive := make(map[string]string)
-	for addr, info := range r.servers {
+	// TODO:get the start value quickly?
+	for addr, infos := range ss {
 		if r.timeout == 0 {
-			alive[addr] = info
+			alive[addr] = infos
 			continue
 		}
-		if v, err := url.ParseQuery(info); err == nil {
-			vv := v.Get("start")
-			if t, err := strconv.Atoi(vv); err == nil {
-				if t-int(time.Now().UnixNano()) > 0 {
-					alive[addr] = info
-				} else {
-					delete(r.servers, addr)
-				}
-			}
+
+		s := getStart(infos)
+		if s > 0 && int64(s)+r.timeout.Nanoseconds() > time.Now().UnixNano() {
+			alive[addr] = infos
+			continue
 		}
+		delete(r.servers, addr)
 	}
+
 	return alive
 }
 
-// Runs at /_rpcg_/registry
+// ServeHTTP Runs at /_rpcg_/registry
+// // to keep it simple, all servers information is in req.Header
 func (r *RpcgRegistry) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "GET":
-		// keep it simple, server is in req.Header
 		as := r.aliveServers()
-		fmt.Println("aliveServers:", as)
 		for addr, info := range as {
 			w.Header().Add("X-RPCg-Servers", addr)
 			w.Header().Add("X-RPCg-Infos", info)
 		}
+
 	case "POST":
-		// keep it simple, server is in req.Header
 		addr := req.Header.Get("X-RPCg-Server-Addr")
 		info := req.Header.Get("X-RPCg-Server-Info")
 		if addr == "" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		log.Println("[INFO]:Server alive:", addr, info)
 		r.putServer(addr, info)
+
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -146,4 +151,74 @@ func sendHeartbeat(registry, addr, info string) error {
 		return err
 	}
 	return nil
+}
+
+type payload struct {
+	weight int
+	start  uint
+
+	// add ...
+}
+
+func parseInfo(info string, ptr interface{}) error {
+	infoStr, err := url.ParseQuery(info)
+	if err != nil {
+		return err
+	}
+
+	// map key is the struct name
+	fields := make(map[string]reflect.Value)
+	v := reflect.ValueOf(ptr).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		fieldInfo := v.Type().Field(i)
+		name := fieldInfo.Name
+		fields[name] = v.Field(i)
+	}
+
+	for key, slice := range infoStr {
+		f := fields[key]
+		if !f.IsValid() {
+			continue
+		}
+		for _, value := range slice {
+			if err := populate(f, value); err != nil {
+				return fmt.Errorf("%s : %v", key, err)
+			}
+		}
+	}
+	return nil
+}
+
+func populate(v reflect.Value, value string) error {
+	switch v.Kind() {
+	case reflect.String:
+		v.SetString(value)
+
+	case reflect.Int:
+		i, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return err
+		}
+		v.SetInt(i)
+
+	case reflect.Bool:
+		b, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		v.SetBool(b)
+
+	default:
+		return fmt.Errorf("unsupported kind %s", v.Type())
+	}
+
+	return nil
+}
+
+func getStart(infos string) int {
+	v, _ := url.ParseQuery(infos)
+	vv := v.Get("start")
+	t, _ := strconv.Atoi(vv)
+
+	return t
 }

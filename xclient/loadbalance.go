@@ -31,15 +31,16 @@ type randomBalancer struct {
 }
 
 func newRandomBalancer(servers map[string]string) Balancer {
-	b := &randomBalancer{servers: make([]string, len(servers), len(servers))}
-	for _, s := range servers {
+	b := &randomBalancer{servers: make([]string, 0, len(servers))}
+	for s := range servers {
 		b.servers = append(b.servers, s)
 	}
 	return b
 }
 
 func (r randomBalancer) Pick() string {
-	return r.servers[utils.Intn(len(r.servers))]
+	x := utils.Intn(len(r.servers))
+	return r.servers[x]
 }
 
 func (r randomBalancer) UpdateAllServers(servers map[string]string) {
