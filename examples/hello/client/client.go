@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	d := xclient.NewGeeRegistryDiscovery(hello.RegistryAddr, 0)
+	d := xclient.NewRegistryDiscovery(hello.RegistryAddr, 0)
 	xc := xclient.NewXClient(d, xclient.Random, nil)
 	defer func() { _ = xc.Close() }()
 

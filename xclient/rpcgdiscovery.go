@@ -70,7 +70,7 @@ func (d *RpcgRegistryDiscovery) GetAll() (map[string]string, error) {
 	return d.MultiServersDiscovery.GetAll()
 }
 
-func NewGeeRegistryDiscovery(registerAddr string, timeout time.Duration) *RpcgRegistryDiscovery {
+func NewRegistryDiscovery(registerAddr string, timeout time.Duration) *RpcgRegistryDiscovery {
 	if timeout == 0 {
 		timeout = defaultUpdateTimeout
 	}
