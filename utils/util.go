@@ -1,6 +1,8 @@
 package utils
 
-import "unsafe"
+import (
+	"unsafe"
+)
 
 func CopyMap(dst, src map[string]string) {
 	if dst == nil {
