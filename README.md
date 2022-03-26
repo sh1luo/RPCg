@@ -2,9 +2,9 @@
 
 RPCg 是一款基于 Go 标准库实现的迷你 RPC 框架，旨在**帮助我们更好的理解** RPC 框架的工作机制，模块抽象良好，易扩展和学习。
 
-<img src="https://blogimagee.oss-cn-beijing.aliyuncs.com/images/image-20201214182720680.png" alt="image-20201214182720680" style="zoom: 80%;" />
+首先启动 registry（左上角），随后启动两个 server 连接到注册中心，随后启动 client，从注册中心提供的服务器列表中随机选择了一个服务器进行调用返回，并正确收到消息。
 
-这里我按顺序运行了一个注册中心，两个服务端以及一个客户端程序，从注册中心提供的服务器列表中随机选择了一个服务器进行调用返回。
+<img src="https://blogimagee.oss-cn-beijing.aliyuncs.com/images/image-20201214182720680.png" alt="image-20201214182720680" style="zoom: 80%;" />
 
 你可以看到每当服务端上线后，注册中心都会更新当前服务端列表，并且服务端定时还会向注册中心发送心跳数据维持与注册中心的连接。你也可以自己下载下来运行这个程序 :)
 
